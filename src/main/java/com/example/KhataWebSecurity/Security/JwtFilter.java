@@ -9,15 +9,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
+
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
     @Autowired
-    private JwtUtil jwtService;
+    private JwtUtil jwtUtil;
 
     @Autowired
     private MyUserDetailsService userDetailsService;
@@ -30,37 +33,46 @@ public class JwtFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // 🔓 Skip filter for login and register
+        // Bypass login/register endpoints
         if (path.equals("/user/login") || path.equals("/user/register")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        System.out.println("Incoming request: " + request.getServletPath());
-        System.out.println("Authorization header: " + request.getHeader("Authorization"));
+        final String authHeader = request.getHeader("Authorization");
 
-        String authHeader = request.getHeader("Authorization");
         String token = null;
         String username = null;
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-            username = jwtService.extractUsername(token);
-        }
-
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtService.validateToken(token, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+        try {
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+                username = jwtUtil.extractUsername(token);
             }
+
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                if (jwtUtil.validateToken(token, userDetails)) {
+                    String role = jwtUtil.extractRole(token); // Extract role from claims
+
+                    // Set Spring Security context with role as authority
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    List.of(new SimpleGrantedAuthority(role)) // ✅ No extra ROLE_ prefix
+                            );
+
+
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("❌ Error in JWT Filter: " + e.getMessage());
+            // Optional: respond with 401 here if needed
         }
 
         filterChain.doFilter(request, response);
     }
-
-
 }
-

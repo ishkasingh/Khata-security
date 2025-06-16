@@ -19,7 +19,6 @@ public class User {
     private String username;
     private String email;
     private String password;
-//    private Boolean isDeleted;
-//    @ManyToMany(cascade = {CascadeType.PERSIST},fetch=FetchType.EAGER)
-//    private List<Role> roles;
+    @Enumerated(EnumType.STRING)
+    private Role role;
 }

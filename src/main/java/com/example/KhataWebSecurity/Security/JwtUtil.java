@@ -8,48 +8,63 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class JwtUtil {
 
-    // 🔐 Must be at least 256 bits (32+ characters for HS256)
+    // 🔐 256-bit secret key (min 32 characters for HS256)
     private final String SECRET = "supersecretkeythatisatleast256bitslong!";
 
-    public SecretKey getSigningKey() {
-        // ✅ Generates a valid key for HS256
+    private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(UserDetails userDetails) {
+    // ✅ Generate JWT with custom claims
+    public String generateToken(UserDetails userDetails, Map<String, Object> claims) {
         return Jwts.builder()
+                .claims(claims)
                 .subject(userDetails.getUsername())
-                .issuedAt(new Date())
+                .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 hours
                 .signWith(getSigningKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
-    public boolean validateToken(String token, UserDetails userDetails) {
-        try {
-            final String username = extractUsername(token);
-            boolean isValid = username.equals(userDetails.getUsername()) && !isTokenExpired(token);
-            System.out.println("✅ Token validation result: " + isValid);
-            return isValid;
-        } catch (Exception e) {
-            System.out.println("❌ Token validation failed: " + e.getMessage());
-            return false;
-        }
+    // ✅ Overloaded method without custom claims
+    public String generateToken(UserDetails userDetails) {
+        return generateToken(userDetails, new HashMap<>());
     }
 
+    // ✅ Extract username
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
     }
 
+    // ✅ Extract role from token (must be stored in claims)
+    public String extractRole(String token) {
+        return extractAllClaims(token).get("role", String.class);
+    }
+
+    // ✅ Validate token
+    public boolean validateToken(String token, UserDetails userDetails) {
+        try {
+            String username = extractUsername(token);
+            return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        } catch (JwtException | IllegalArgumentException e) {
+            System.out.println("❌ Token validation error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // ✅ Check expiration
     public boolean isTokenExpired(String token) {
         return extractAllClaims(token).getExpiration().before(new Date());
     }
 
-    public Claims extractAllClaims(String token) {
+    // ✅ Extract all claims
+    private Claims extractAllClaims(String token) {
         try {
             return Jwts.parser()
                     .verifyWith(getSigningKey())
@@ -57,7 +72,7 @@ public class JwtUtil {
                     .parseSignedClaims(token)
                     .getPayload();
         } catch (JwtException e) {
-            System.out.println("❌ Error extracting claims: " + e.getMessage());
+            System.out.println("❌ Error parsing token: " + e.getMessage());
             throw e;
         }
     }

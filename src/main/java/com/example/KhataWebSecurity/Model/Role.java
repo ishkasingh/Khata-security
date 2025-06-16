@@ -1,16 +1,7 @@
-//package com.example.KhataWebSecurity.Model;
-//
-//import jakarta.persistence.Entity;
-//import jakarta.persistence.GeneratedValue;
-//import jakarta.persistence.GenerationType;
-//import jakarta.persistence.Id;
-//import lombok.Data;
-//
-//@Data
-//@Entity
-//public class Role {
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.AUTO)
-//    private Long id;
-//    private String name;
-//}
+package com.example.KhataWebSecurity.Model;
+
+public enum Role {
+    ROLE_ADMIN,
+    ROLE_SHOPKEEPER,
+    ROLE_CUSTOMER
+}

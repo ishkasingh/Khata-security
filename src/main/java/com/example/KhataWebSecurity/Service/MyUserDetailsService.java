@@ -28,10 +28,7 @@ public class MyUserDetailsService implements UserDetailsService {
         System.out.println("✅ User found in UserDetailsService: " + username);
         System.out.println("Password hash: " + user.getPassword().substring(0, 10) + "...");
 
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPassword(),
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-        );
+        return new com.example.KhataWebSecurity.Security.MyUserDetails(user); // ✅ Fix here
     }
+
 }

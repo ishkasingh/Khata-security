@@ -10,6 +10,7 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -23,6 +24,7 @@ import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)  // Enables @PreAuthorize/@PostAuthorize
 public class SecurityConfig {
 
     @Autowired
@@ -36,11 +38,19 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
-                // IMPORTANT: Explicitly define which paths are public.
-                // Assuming your registration and login endpoints are under /user/
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/user/register", "/user/login").permitAll() // Permit register and login specifically
-                        .anyRequest().authenticated()) // All other requests need authentication
+                        // Public endpoints
+                        .requestMatchers("/user/register", "/user/login").permitAll()
+
+                        // Role-based endpoint access
+                        .requestMatchers("/user/admin-area").hasRole("ADMIN")
+                        .requestMatchers("/user/shopkeeper-area").hasRole("SHOPKEEPER")
+                        .requestMatchers("/user/employee-area").hasRole("EMPLOYEE")
+                        .requestMatchers("/user/customer-area").hasRole("CUSTOMER")
+
+                        // All other endpoints require authentication
+                        .anyRequest().authenticated()
+                )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -50,13 +60,12 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
     }
 
-    // Renamed to passwordEncoder() to match the call in authenticationProvider()
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -70,10 +79,10 @@ public class SecurityConfig {
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Be more specific with origins in production for better security
-        configuration.setAllowedOrigins(Arrays.asList("*"));
+        configuration.setAllowedOrigins(Arrays.asList("*")); // Use exact origins in production
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true); // If needed
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

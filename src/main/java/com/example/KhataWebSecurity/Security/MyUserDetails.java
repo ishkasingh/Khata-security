@@ -1,16 +1,12 @@
 package com.example.KhataWebSecurity.Security;
 
-//import com.example.KhataWebSecurity.Model.Role;
 import com.example.KhataWebSecurity.Model.User;
-import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MyUserDetails implements UserDetails {
 
@@ -20,15 +16,10 @@ public class MyUserDetails implements UserDetails {
         this.user = user;
     }
 
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-//        return user.getRoles().stream()
-//                .map(Role::getName)
-//                .map(SimpleGrantedAuthority::new)
-//                .collect(Collectors.toSet());
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
-
+        // Use actual role from the user, assuming it includes the "ROLE_" prefix
+        return List.of(new SimpleGrantedAuthority(user.getRole().name()));
     }
 
     @Override
@@ -58,9 +49,9 @@ public class MyUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-       // return user.getIsDeleted() == null || !user.getIsDeleted();
         return true;
     }
+
     public User getUser() {
         return user;
     }
